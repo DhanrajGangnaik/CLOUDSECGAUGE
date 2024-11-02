@@ -1,71 +1,56 @@
-// security.js
+// Function to check for SQL injection patterns
+function isSafeInput(input) {
+    const sqlInjectionPatterns = [
+        /['";#@&\\\/*+%-]/,                  // Common SQL special characters
+        /\b(OR|AND|UNION|SELECT|INSERT|DELETE|UPDATE|HAVING|DROP|BENCHMARK|SLEEP|WAITFOR|RLIKE|CONVERT|CHAR|INTO|FROM|WHERE|GROUP BY|ORDER BY)\b/i,
+        /--/,                                 // SQL comment syntax
+        /\d+\s*=\s*\d+/,                      // Expressions like 1=1
+        /[^\w\s]AND[^\w\s]/i,                 // Statements with AND (e.g., "admin' AND 1=1")
+        /[^\w\s]OR[^\w\s]/i,                  // Statements with OR (e.g., "admin' OR '1'='1")
+        /(\b)[\w]*((\b)SLEEP|BENCHMARK|WAITFOR)/i, // Time-based injections
+        /(\b)[\w]*((\b)RLIKE|LIKE|CHAR|UNION|CONCAT)/i,
+        /(UNION\s+SELECT)/i,                   // UNION-based injections
+        /%00|--|;/,                           // Null byte, comments, or semi-colon
+    ];
 
-// Basic Input Validation Function
-function validateInput(value, type) {
-    const patterns = {
-        username: /^[a-zA-Z0-9_]{3,30}$/,  // Alphanumeric and underscores for usernames, 3-30 characters
-        password: /^.{8,30}$/,  // Minimum 8 and maximum 30 characters for passwords
-    };
-
-    return patterns[type].test(value);
+    return !sqlInjectionPatterns.some(pattern => pattern.test(input));
 }
 
-// Function to escape HTML characters to prevent XSS
-function escapeHtml(unsafe) {
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-// Function to get CSRF token from meta tag
-function getCsrfToken() {
-    const csrfMetaTag = document.querySelector('meta[name="csrf-token"]');
-    return csrfMetaTag ? csrfMetaTag.getAttribute('content') : '';
-}
-
-// Form Validation Handler
+// Function to validate all form inputs
 function validateForm(form) {
-    let username = form.username.value;
-    let password = form.password.value;
+    for (let i = 0; i < form.elements.length; i++) {
+        const element = form.elements[i];
+        if (element.type === 'text' || element.type === 'password' || element.type === 'textarea') {
+            const value = element.value.trim();
 
-    // Escape HTML characters to prevent XSS attacks
-    username = escapeHtml(username);
-    password = escapeHtml(password);
-
-    if (!validateInput(username, 'username')) {
-        alert("Username can only contain letters, numbers, and underscores, and must be 3-30 characters.");
-        return false;
+            // Check for empty input or invalid input
+            if (value === "" || !isSafeInput(value)) {
+                alert("Invalid input detected! Please avoid using special characters or SQL keywords.");
+                element.focus();
+                return false;
+            }
+        }
     }
-
-    if (!validateInput(password, 'password')) {
-        alert("Password must be between 8 and 30 characters.");
-        return false;
-    }
-
     return true;
 }
 
-// Attach CSRF token to form submission
+// Add event listeners to validate inputs in real-time
 document.addEventListener("DOMContentLoaded", function () {
-    const form = document.querySelector('form');
-    if (form) {
-        form.addEventListener('submit', function (event) {
-            // Add CSRF token to form if present
-            const csrfToken = getCsrfToken();
-            if (csrfToken) {
-                const csrfInput = document.createElement('input');
-                csrfInput.type = 'hidden';
-                csrfInput.name = 'csrf_token';
-                csrfInput.value = csrfToken;
-                form.appendChild(csrfInput);
-            }
-
+    const forms = document.querySelectorAll("form");
+    forms.forEach((form) => {
+        form.addEventListener("submit", function (event) {
             if (!validateForm(form)) {
-                event.preventDefault(); // Prevent form submission if validation fails
+                event.preventDefault();
             }
         });
-    }
+    });
+
+    // Prevent pasting into input fields to avoid injecting payloads
+    const inputs = document.querySelectorAll("input[type='text'], input[type='password'], textarea");
+    inputs.forEach(input => {
+        input.addEventListener("paste", function (e) {
+            e.preventDefault();
+            alert("Pasting is disabled for security reasons.");
+        });
+    });
 });

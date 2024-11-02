@@ -1,0 +1,30 @@
+# Use Python image as the base
+FROM python:3.9-slim
+
+# Set working directory
+WORKDIR /app
+
+# Copy the entire project folder into the container
+COPY . /app
+
+# Install Oracle Instant Client dependencies
+RUN apt-get update && apt-get install -y libaio1 && rm -rf /var/lib/apt/lists/*
+
+# Set up Oracle Instant Client
+RUN mkdir -p /opt/oracle && \
+    cp -r /app/instantclient_23_5 /opt/oracle && \
+    echo "/opt/oracle/instantclient_23_5" > /etc/ld.so.conf.d/oracle-instantclient.conf && \
+    ldconfig
+
+# Install required Python packages
+RUN pip install --no-cache-dir -r config/requirements.txt
+
+# Set environment variables for Oracle
+ENV LD_LIBRARY_PATH=/opt/oracle/instantclient_23_5
+ENV ORACLE_HOME=/opt/oracle/instantclient_23_5
+
+# Expose the port your Flask app runs on
+EXPOSE 5000
+
+# Run the Flask application
+CMD ["python", "app.py"]

@@ -3,28 +3,44 @@ import cx_Oracle
 import csv
 import os
 import re
+import logging
+
+# Set Oracle Instant Client environment variables
+os.environ["LD_LIBRARY_PATH"] = "/opt/oracle/instantclient_23_5"
+os.environ["ORACLE_HOME"] = "/opt/oracle/instantclient_23_5"
 
 # Set up the Oracle Instant Client library path
-cx_Oracle.init_oracle_client(lib_dir=r"C:\PROJECTFOLDER\instantclient_23_5")
+try:
+    cx_Oracle.init_oracle_client(lib_dir="/opt/oracle/instantclient_23_5")
+except Exception as e:
+    logging.error(f"Oracle Client initialization error: {e}")
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 
+# Configure logging for better error tracking
+logging.basicConfig(level=logging.DEBUG)
+
 # Database configuration
 dsn = "localhost:1521/XE"
-username = "system"
-password = "oracle"
+username = "admin"
+password = "password"
 
-# Initialize a connection pool
-pool = cx_Oracle.SessionPool(
-    user=username,
-    password=password,
-    dsn=dsn,
-    min=2,
-    max=10,
-    increment=1,
-    threaded=True
-)
+# Initialize a connection pool with more detailed debugging
+try:
+    pool = cx_Oracle.SessionPool(
+        user=username,
+        password=password,
+        dsn=dsn,
+        min=2,
+        max=10,
+        increment=1,
+        threaded=True,
+        encoding="UTF-8"
+    )
+    logging.debug("Connection pool created successfully.")
+except cx_Oracle.DatabaseError as e:
+    logging.error(f"Database connection pool error: {e}")
 
 # Input validation functions
 def is_valid_username(username):
@@ -48,46 +64,37 @@ def login():
             # Get a connection from the pool
             connection = pool.acquire()
             cursor = connection.cursor()
-            
-            # Fetch the user's password from the database
-            cursor.execute(
-                "SELECT password FROM users WHERE username = :username",
-                {"username": user}
-            )
+
+            # Simplified query with explicit error handling
+            cursor.execute("SELECT password FROM users WHERE username = :username", {"username": user})
             result = cursor.fetchone()
             
-            # Debugging output for each step
             if result:
                 stored_password = result[0]
-                print(f"DEBUG: Retrieved password from database: {stored_password}")
-                print(f"DEBUG: Password entered by user: {pw}")
-                
-                # Check if stored password matches entered password
-                if stored_password == pw:  # For plain text comparison during testing
-                    print("DEBUG: Passwords match. Logging in user.")
+                logging.debug(f"Retrieved password from database: {stored_password}")
+
+                if stored_password == pw:  # Use a hash comparison in production
                     session['username'] = user
                     flash("Login successful!", "success")
                     return redirect(url_for('home'))
                 else:
-                    print("DEBUG: Passwords do not match.")
                     flash("Invalid password.", "danger")
             else:
-                print("DEBUG: No user found with that username.")
                 flash("Invalid username.", "danger")
         
         except cx_Oracle.DatabaseError as e:
-            print(f"Database error: {e}")
-            flash(f"Database error: {str(e)}", "danger")
+            error, = e.args
+            logging.error(f"Database error code: {error.code}")
+            logging.error(f"Database error message: {error.message}")
+            flash(f"Database error: {error.message}", "danger")
         
         finally:
-            # Release the connection back to the pool
-            if 'cursor' in locals():
+            if cursor:
                 cursor.close()
-            if 'connection' in locals():
+            if connection:
                 pool.release(connection)
 
     return render_template('login.html')
-
 
 @app.route('/home')
 def home():
@@ -99,24 +106,22 @@ def home():
         connection = pool.acquire()
         cursor = connection.cursor()
         
-        # Fetch data with limited rows to prevent data overload
+        # Fetch data with limited rows
         cursor.execute("SELECT transaction_id, transaction_date, amount, category, is_fraud FROM credit_card_fraud FETCH FIRST 100 ROWS ONLY")
         result = cursor.fetchall()
-        
-        if result:
-            flash("Data fetched successfully!", "info")
-        else:
-            flash("No data available in the table.", "warning")
 
         return render_template('home.html', table=result)
     
     except cx_Oracle.DatabaseError as e:
+        error, = e.args
+        logging.error(f"Database error code: {error.code}")
+        logging.error(f"Database error message: {error.message}")
         flash("Failed to fetch data from the database.", "danger")
     
     finally:
-        if 'cursor' in locals():
+        if cursor:
             cursor.close()
-        if 'connection' in locals():
+        if connection:
             pool.release(connection)
 
 @app.route('/load_data')
@@ -125,26 +130,22 @@ def load_data():
         flash("Please log in first", "warning")
         return redirect(url_for('login'))
 
-    # Path to the CSV file in the container or local directory
-    csv_file_path = "data/credit_card_fraud_dataset.csv"  # Adjust path if necessary
+    csv_file_path = "data/credit_card_fraud_dataset.csv"
 
     try:
         connection = pool.acquire()
         cursor = connection.cursor()
         
-        # Open and read the CSV file
         with open(csv_file_path, "r") as csv_file:
             csv_reader = csv.reader(csv_file)
             next(csv_reader)  # Skip the header row
 
-            # Insert each row securely
             for row in csv_reader:
                 cursor.execute("""
                     INSERT INTO credit_card_fraud (transaction_id, transaction_date, amount, category, is_fraud)
                     VALUES (:1, TO_DATE(:2, 'YYYY-MM-DD'), :3, :4, :5)
                 """, row)
 
-        # Commit the transaction
         connection.commit()
         flash("Data loaded successfully from CSV!", "success")
     
@@ -152,12 +153,15 @@ def load_data():
         flash("CSV file not found. Please ensure the file is available.", "danger")
     
     except cx_Oracle.DatabaseError as e:
-        flash(f"Database error: {str(e)}", "danger")
+        error, = e.args
+        logging.error(f"Database error code: {error.code}")
+        logging.error(f"Database error message: {error.message}")
+        flash(f"Database error: {error.message}", "danger")
     
     finally:
-        if 'cursor' in locals():
+        if cursor:
             cursor.close()
-        if 'connection' in locals():
+        if connection:
             pool.release(connection)
 
     return redirect(url_for('home'))
