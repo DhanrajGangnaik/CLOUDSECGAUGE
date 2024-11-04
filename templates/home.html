@@ -2,14 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Credit Card Fraud Data</title>
+    <title>Home - CSV Data</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
-<body class="home-body">
-    <div class="data-container">
+<body>
+    <div class="container">
         <h1>Credit Card Fraud Data</h1>
-        <table class="data-table">
+        <table>
             <thead>
                 <tr>
                     <th>Transaction ID</th>
@@ -31,6 +30,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        <a href="{{ url_for('logout') }}">Logout</a>
     </div>
 </body>
 </html>
