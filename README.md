@@ -1,8 +1,6 @@
-# 🔒🌥️ Cloud Security Gauge
+# 🛡️🌥️ Cloud Security Gauge   
 
 **Cloud Security Gauge** is a robust tool designed to detect and prevent SQL injections and other security vulnerabilities in cloud-hosted applications. Built with Flask and integrated with PostgreSQL in a Dockerized environment, this tool is ideal for developers and security professionals looking to enhance the security of their cloud applications.
-
-![Security Image](./path_to_logo_image) <!-- Optional: Add a logo or header image if available -->
 
 ---
 
@@ -15,7 +13,7 @@
 
 ---
 
-## 📜 Project Structure
+## 🏗️ Project Structure
 
 ```
 cloudsecgauge/
@@ -28,7 +26,7 @@ cloudsecgauge/
 
 ---
 
-## 🚒 Prerequisites
+## 🛠️ Prerequisites
 
 Before you begin, ensure you have:
 
@@ -38,7 +36,7 @@ Before you begin, ensure you have:
 
 ---
 
-## 🚀 Installation
+## ⬇️ Installation
 
 ### Step 1: Clone the Repository
 
@@ -131,12 +129,12 @@ Contributions are welcome! Please fork this repository and create a pull request
 
 ---
 
-## 🐜 License
+## 📜 License
 
 This project is licensed under the MIT License. See the `LICENSE` file for more details.
 
 ---
 
-## 👤 Contact
+## 🙋🏻‍♂️ Contact 
 
 Created by [Dhanraj Gangnaik](https://github.com/DhanrajGangnaik) – feel free to reach out with any questions or suggestions!
