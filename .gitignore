@@ -7,3 +7,4 @@ venv/
 *.db
 *.log
 .env
+db/data/pg_stat_tmp/
